@@ -34,6 +34,17 @@ Any folder inside `models/` appears in the Model dropdown. `models/` is git-igno
 - Apple Silicon Mac with 32 GB+ memory for the int8 (`q8`) model. With 16 GB, pick the `q4` model or tick "Low RAM".
 - [uv](https://docs.astral.sh/uv/) and `ffmpeg`.
 
+## Measured speed
+
+On a MacBook Pro M5 Pro with 48 GB, using the q8 model, the Distilled pipeline and 704×448:
+
+| Clip | Time | Peak memory |
+|---|---|---|
+| 2 s (49 frames), text only | 49 s | 24 GB |
+| 5 s (121 frames), text + start image | 88 s | 28 GB |
+
+Times include loading the model. Neither run swapped.
+
 ## Settings that matter
 
 - **Pipeline**: "Distilled" is the fastest. "Two-stage" gives better quality and takes longer.
