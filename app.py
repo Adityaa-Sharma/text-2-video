@@ -29,7 +29,18 @@ MODES = {
 FRAMES = [0, 25, 49, 65, 81, 97, 121, 145, 161]
 
 
-def build_cmd(prompt, image, model, mode, width, height, frames, seed, audio, low_ram, enhance, out):
+def enhance(prompt, image):
+    """Rewrite a rough idea into the detailed visual description LTX expects, using Gemma."""
+    if not prompt.strip():
+        raise gr.Error("Write a prompt first.")
+    cmd = [str(CLI), "enhance", "-p", prompt, "--mode", "i2v" if image else "t2v"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0 or "\nEnhanced: " not in result.stdout:
+        raise gr.Error("Enhancing failed: " + (result.stderr or result.stdout)[-300:])
+    return result.stdout.split("\nEnhanced: ", 1)[1].strip()
+
+
+def build_cmd(prompt, image, model, mode, width, height, frames, seed, audio, low_ram, out):
     cmd = [str(CLI), "generate", "-p", prompt, "-o", str(out), "-m", model, MODES[mode]]
     cmd += ["-W", str(width), "-H", str(height), "--frame-rate", "24", "-s", str(int(seed))]
     if frames:
@@ -40,17 +51,15 @@ def build_cmd(prompt, image, model, mode, width, height, frames, seed, audio, lo
         cmd.append("--no-audio")
     if low_ram:
         cmd.append("--low-ram")
-    if enhance:
-        cmd.append("--enhance-prompt")
     return cmd
 
 
-def generate(prompt, image, model, mode, width, height, frames, seed, audio, low_ram, enhance):
+def generate(prompt, image, model, mode, width, height, frames, seed, audio, low_ram):
     if not prompt.strip():
         raise gr.Error("Write a prompt first.")
     OUTPUTS.mkdir(exist_ok=True)
     out = OUTPUTS / f"{time.strftime('%Y%m%d-%H%M%S')}.mp4"
-    cmd = build_cmd(prompt, image, model, mode, width, height, frames, seed, audio, low_ram, enhance, out)
+    cmd = build_cmd(prompt, image, model, mode, width, height, frames, seed, audio, low_ram, out)
     log = "$ " + " ".join(cmd) + "\n"
     start = time.time()
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -70,7 +79,8 @@ with gr.Blocks(title="LTX-2 Playground") as demo:
     gr.Markdown("# LTX-2 Playground\nText → video, or add an image to animate it. Runs fully on this Mac.")
     with gr.Row():
         with gr.Column():
-            prompt = gr.Textbox(label="Prompt", lines=4, placeholder="A heavy wooden door creaks slowly open...")
+            prompt = gr.Textbox(label="Prompt", lines=6, placeholder="A heavy wooden door creaks slowly open...")
+            enhance_btn = gr.Button("Enhance prompt (rewrites the text above, takes up to a minute)", size="sm")
             image = gr.Image(label="Start image (optional, makes it image-to-video)", type="filepath")
             model = gr.Dropdown(MODELS, value=MODELS[0], label="Model", allow_custom_value=True)
             mode = gr.Dropdown(list(MODES), value="Distilled (fastest)", label="Pipeline")
@@ -83,18 +93,19 @@ with gr.Blocks(title="LTX-2 Playground") as demo:
             with gr.Row():
                 audio = gr.Checkbox(value=True, label="Audio")
                 low_ram = gr.Checkbox(label="Low RAM (slower)")
-                enhance = gr.Checkbox(label="Enhance prompt")
             with gr.Row():
                 run = gr.Button("Generate", variant="primary")
                 stop = gr.Button("Stop")
         with gr.Column():
             video = gr.Video(label="Result")
             log = gr.Textbox(label="Log", lines=18, max_lines=18, autoscroll=True)
-    inputs = [prompt, image, model, mode, width, height, frames, seed, audio, low_ram, enhance]
-    event = run.click(generate, inputs, [video, log], concurrency_limit=1)  # one run at a time: memory
+    inputs = [prompt, image, model, mode, width, height, frames, seed, audio, low_ram]
+    # Shared queue of one: enhancing and generating never overlap, so memory stays bounded.
+    event = run.click(generate, inputs, [video, log], concurrency_limit=1, concurrency_id="gpu")
+    enhance_btn.click(enhance, [prompt, image], prompt, concurrency_limit=1, concurrency_id="gpu")
     stop.click(None, cancels=[event])
 
 if __name__ == "__main__":
-    cmd = build_cmd("p", "i.png", "m", "One-stage", 704, 448, 0, -1, False, True, False, "o.mp4")
+    cmd = build_cmd("p", "i.png", "m", "One-stage", 704, 448, 0, -1, False, True, "o.mp4")
     assert "-f" not in cmd and cmd[-4:] == ["--image", "i.png", "--no-audio", "--low-ram"], cmd
     demo.launch(inbrowser=True)
