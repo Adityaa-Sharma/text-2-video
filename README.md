@@ -11,7 +11,21 @@ uv run app.py
 
 The UI opens in your browser. Write a prompt, optionally drop in a start image, and press Generate. Videos are saved to `outputs/`.
 
-The first generation downloads the model weights (about 87 GB for `dgrauet/ltx-2.3-mlx-q8`, plus about 8 GB for the Gemma text encoder) into `~/.cache/huggingface`.
+## Get the model
+
+Download the weights into `models/` before the first run. This fetches only what the "Distilled" pipeline needs (about 30 GB instead of the full 87 GB):
+
+```bash
+uv run hf download dgrauet/ltx-2.3-mlx-q8 --local-dir models/ltx-2.3-mlx-q8 \
+  --exclude "transformer-dev.safetensors" "transformer-distilled.safetensors" \
+  "*distilled-lora*" "spatial_upscaler_x1_5*"
+```
+
+The Gemma text encoder (about 8 GB) downloads by itself on the first generation, into `~/.cache/huggingface`.
+
+The two-stage and one-stage pipelines also need the dev transformer and the distilled LoRA. To add them later, run the same command without the `--exclude` line; files you already have are skipped.
+
+Any folder inside `models/` appears in the Model dropdown. `models/` is git-ignored.
 
 ## Requirements
 
