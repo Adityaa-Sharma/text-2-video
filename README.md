@@ -17,13 +17,15 @@ Download the weights into `models/` before the first run. This fetches only what
 
 ```bash
 uv run hf download dgrauet/ltx-2.3-mlx-q8 --local-dir models/ltx-2.3-mlx-q8 \
-  --exclude "transformer-dev.safetensors" "transformer-distilled.safetensors" \
-  "*distilled-lora*" "spatial_upscaler_x1_5*"
+  --exclude "transformer-dev.safetensors" --exclude "transformer-distilled.safetensors" \
+  --exclude "*distilled-lora*" --exclude "spatial_upscaler_x1_5*"
 ```
+
+Each pattern needs its own `--exclude`; extra values after one flag are treated as files to download.
 
 The Gemma text encoder (about 8 GB) downloads by itself on the first generation, into `~/.cache/huggingface`.
 
-The two-stage and one-stage pipelines also need the dev transformer and the distilled LoRA. To add them later, run the same command without the `--exclude` line; files you already have are skipped.
+The two-stage and one-stage pipelines also need the dev transformer and the distilled LoRA. To add them later, run the same command without the `--exclude` flags; files you already have are skipped.
 
 Any folder inside `models/` appears in the Model dropdown. `models/` is git-ignored.
 
