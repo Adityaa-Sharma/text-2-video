@@ -18,7 +18,6 @@ CLI = Path(sys.executable).parent / "ltx-2-mlx"
 # LTX-2.5 packs are gated and must be a local directory; drop one in models/ and it shows up here.
 MODELS = [str(p) for p in sorted((ROOT / "models").glob("*")) if p.is_dir()] + [
     "dgrauet/ltx-2.3-mlx-q8",
-    "dgrauet/ltx-2.3-mlx-q4",
 ]
 MODES = {
     "Distilled (fastest)": "--distilled",
